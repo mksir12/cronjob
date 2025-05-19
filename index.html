@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cron Job Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 1rem; }
+    .hidden { display: none; }
+    input, button { padding: 0.5rem; margin: 0.3rem 0; width: 100%; }
+    ul { max-height: 300px; overflow-y: auto; padding: 0; list-style: none; }
+    li { padding: 0.5rem; border-bottom: 1px solid #ddd; }
+    .job-title { font-weight: bold; }
+    .job-actions button { margin-right: 0.5rem; }
+  </style>
+</head>
+<body>
+  <h1>Cron Job Dashboard</h1>
+
+  <div id="login-form">
+    <h2>Login</h2>
+    <input type="email" id="email" placeholder="Email" required />
+    <input type="password" id="password" placeholder="Password" required />
+    <button onclick="login()">Login</button>
+    <p id="login-error" style="color:red"></p>
+  </div>
+
+  <div id="dashboard" class="hidden">
+    <button onclick="logout()">Logout</button>
+    <h2>Your Cron Jobs</h2>
+    <ul id="jobs-list"></ul>
+
+    <h3>Add New Cron Job</h3>
+    <input type="text" id="job-title" placeholder="Job Title" />
+    <input type="url" id="job-url" placeholder="Job URL" />
+    <input type="text" id="job-interval" placeholder="Interval (e.g. every 5 minutes)" />
+    <button onclick="addJob()">Add Job</button>
+    <p id="add-error" style="color:red"></p>
+  </div>
+
+<script>
+  let token = null;
+
+  async function login() {
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value.trim();
+    document.getElementById('login-error').innerText = '';
+    if (!email || !password) {
+      document.getElementById('login-error').innerText = 'Email and password required';
+      return;
+    }
+    try {
+      const res = await fetch('http://localhost:3001/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Login failed');
+      token = data.token;
+      showDashboard();
+      loadJobs();
+    } catch (e) {
+      document.getElementById('login-error').innerText = e.message;
+    }
+  }
+
+  function logout() {
+    token = null;
+    document.getElementById('dashboard').classList.add('hidden');
+    document.getElementById('login-form').classList.remove('hidden');
+  }
+
+  async function loadJobs() {
+    const list = document.getElementById('jobs-list');
+    list.innerHTML = '';
+    try {
+      const res = await fetch('http://localhost:3001/jobs', {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load jobs');
+      if (data.jobs.length === 0) {
+        list.innerHTML = '<li>No cron jobs yet.</li>';
+        return;
+      }
+      data.jobs.forEach(job => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <div class="job-title">${job.title}</div>
+          <div>URL: ${job.url}</div>
+          <div>Interval: ${job.interval}</div>
+          <div class="job-actions">
+            <button onclick="deleteJob('${job.id}')">Delete</button>
+          </div>
+        `;
+        list.appendChild(li);
+      });
+    } catch (e) {
+      list.innerHTML = `<li style="color:red">${e.message}</li>`;
+    }
+  }
+
+  async function addJob() {
+    const title = document.getElementById('job-title').value.trim();
+    const url = document.getElementById('job-url').value.trim();
+    const interval = document.getElementById('job-interval').value.trim();
+    document.getElementById('add-error').innerText = '';
+
+    if (!title || !url || !interval) {
+      document.getElementById('add-error').innerText = 'All fields are required';
+      return;
+    }
+
+    try {
+      const res = await fetch('http://localhost:3001/jobs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + token
+        },
+        body: JSON.stringify({ title, url, interval })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to add job');
+      document.getElementById('job-title').value = '';
+      document.getElementById('job-url').value = '';
+      document.getElementById('job-interval').value = '';
+      loadJobs();
+    } catch (e) {
+      document.getElementById('add-error').innerText = e.message;
+    }
+  }
+
+  async function deleteJob(id) {
+    try {
+      const res = await fetch(`http://localhost:3001/jobs/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete job');
+      loadJobs();
+    } catch (e) {
+      alert('Error deleting job: ' + e.message);
+    }
+  }
+
+  function showDashboard() {
+    document.getElementById('login-form').classList.add('hidden');
+    document.getElementById('dashboard').classList.remove('hidden');
+  }
+</script>
+</body>
+</html>
