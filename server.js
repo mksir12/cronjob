@@ -7,7 +7,7 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-const JWT_SECRET = 'your_jwt_secret_key_here';
+const JWT_SECRET = 'a6850b037d9e9e6c841d89ab0068e541a93af039b85daff69591307e9e07e4b3b06a1cd64614e9c058db448c74993d5ee47d6d3d4768ad8ad424874d9120aa8f8c68a597b01630977b2b1e87548fb75122bf15022510156fd8a51288b1b5307376077cdaf982fa0894e1c4e55cef583a0fd25192f091746bdc6d062290c88b9d03334e2d6de26a7268fb7b74683ca527c17fe60d26214053f7d3a890e43f35ffe4d5b2c1e8be63d34438c6756be8c62a3bf7e1bc57b700b3cfb068284ad96108';
 
 // Simple in-memory user store & cron jobs store
 const users = {
