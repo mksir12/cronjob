@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Cron Job Manager</title>
+  <style>
+    body { font-family: Arial; margin: 20px; }
+    label { display: block; margin: 10px 0 5px; }
+    input, select, button { padding: 5px; }
+    .job { border: 1px solid #ccc; padding: 10px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h2>Create Cron Job</h2>
+  <form id="createForm">
+    <label>API Key:<br><input type="text" id="apiKey" value="8EH3QCKn++aUd4SGWabbE4nb667AvXjfYhR55rQbvBE=" required></label>
+    <label>Job URL:<br><input type="text" id="jobUrl" placeholder="https://example.com" required></label>
+    <label>Minutes (e.g., 0 or [0,30]):<br><input type="text" id="minutes" value="0" required></label>
+    <button type="submit">Create Job</button>
+  </form>
+
+  <h2>Existing Cron Jobs</h2>
+  <button onclick="loadJobs()">Refresh List</button>
+  <div id="jobsList"></div>
+
+  <script>
+    const API_BASE = 'https://api.cron-job.org';
+
+    document.getElementById('createForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const apiKey = document.getElementById('apiKey').value.trim();
+      const jobUrl = document.getElementById('jobUrl').value.trim();
+      const minutes = JSON.parse(document.getElementById('minutes').value.trim());
+
+      const payload = {
+        job: {
+          url: jobUrl,
+          enabled: true,
+          saveResponses: false,
+          schedule: {
+            timezone: "UTC",
+            expiresAt: 0,
+            hours: [-1],
+            mdays: [-1],
+            minutes: minutes,
+            months: [-1],
+            wdays: [-1]
+          }
+        }
+      };
+
+      const res = await fetch(API_BASE + '/jobs', {
+        method: 'PUT',
+        headers: {
+          'Authorization': 'Bearer ' + apiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      alert(res.ok ? 'Job Created!' : 'Error: ' + JSON.stringify(data));
+      loadJobs();
+    });
+
+    async function loadJobs() {
+      const apiKey = document.getElementById('apiKey').value.trim();
+      const jobsRes = await fetch(API_BASE + '/jobs', {
+        headers: { 'Authorization': 'Bearer ' + apiKey }
+      });
+      const jobs = await jobsRes.json();
+
+      const list = document.getElementById('jobsList');
+      list.innerHTML = '';
+
+      for (const job of jobs.jobs) {
+        const detailsRes = await fetch(API_BASE + '/jobs/' + job.jobId, {
+          headers: { 'Authorization': 'Bearer ' + apiKey }
+        });
+        const jobData = await detailsRes.json();
+
+        const div = document.createElement('div');
+        div.className = 'job';
+        div.innerHTML = `
+          <b>ID:</b> ${jobData.job.jobId}<br>
+          <b>URL:</b> ${jobData.job.url}<br>
+          <b>Minutes:</b> ${JSON.stringify(jobData.job.schedule.minutes)}<br>
+          <button onclick="deleteJob('${jobData.job.jobId}')">Delete</button>
+          <br><br>
+          <label>Update Minutes:
+            <input type="text" id="minutes-${jobData.job.jobId}" value="${JSON.stringify(jobData.job.schedule.minutes)}">
+            <button onclick="updateJob('${jobData.job.jobId}')">Update</button>
+          </label>
+        `;
+        list.appendChild(div);
+      }
+    }
+
+    async function deleteJob(jobId) {
+      const apiKey = document.getElementById('apiKey').value.trim();
+      if (!confirm('Delete this job?')) return;
+      await fetch(API_BASE + '/jobs/' + jobId, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + apiKey }
+      });
+      loadJobs();
+    }
+
+    async function updateJob(jobId) {
+      const apiKey = document.getElementById('apiKey').value.trim();
+      const minutesInput = document.getElementById(`minutes-${jobId}`);
+      const newMinutes = JSON.parse(minutesInput.value.trim());
+
+      const res = await fetch(API_BASE + '/jobs/' + jobId, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': 'Bearer ' + apiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          job: {
+            schedule: {
+              timezone: "UTC",
+              expiresAt: 0,
+              hours: [-1],
+              mdays: [-1],
+              minutes: newMinutes,
+              months: [-1],
+              wdays: [-1]
+            }
+          }
+        })
+      });
+
+      const data = await res.json();
+      alert(res.ok ? 'Job Updated!' : 'Error: ' + JSON.stringify(data));
+      loadJobs();
+    }
+
+    loadJobs(); // Load jobs on page load
+  </script>
+</body>
+</html>
