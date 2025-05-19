@@ -52,7 +52,7 @@
         url: jobUrl,
         enabled: true,
         saveResponses: false,
-        title: `pw:${password}`,
+        tags: [password],
         schedule: {
           timezone: "UTC",
           expiresAt: 0,
@@ -65,65 +65,71 @@
       }
     };
 
-    const res = await fetch(`${API_BASE}/jobs`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
+    try {
+      const res = await fetch(`${API_BASE}/jobs`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
 
-    const data = await res.json();
-    alert(res.ok ? 'Job Created!' : 'Error: ' + JSON.stringify(data));
-    if (res.ok) {
-      document.getElementById('jobUrl').value = '';
-      document.getElementById('jobPassword').value = '';
-      loadJobs();
+      const data = await res.json();
+      if (res.ok) {
+        alert('Job Created!');
+        document.getElementById('createForm').reset();
+        loadJobs();
+      } else {
+        alert('Error: ' + JSON.stringify(data));
+      }
+    } catch (err) {
+      alert('Network error: ' + err.message);
     }
   });
 
   async function loadJobs() {
-    const jobsRes = await fetch(`${API_BASE}/jobs`, {
-      headers: { 'Authorization': `Bearer ${API_KEY}` }
-    });
+    try {
+      const res = await fetch(`${API_BASE}/jobs`, {
+        headers: { 'Authorization': `Bearer ${API_KEY}` }
+      });
+      const data = await res.json();
+      const list = document.getElementById('jobsList');
+      list.innerHTML = '';
 
-    const data = await jobsRes.json();
-    const list = document.getElementById('jobsList');
-    list.innerHTML = '';
+      if (!data.jobs || data.jobs.length === 0) {
+        list.innerHTML = '<p>No jobs found.</p>';
+        return;
+      }
 
-    if (!data.jobs || data.jobs.length === 0) {
-      list.innerHTML = '<p>No jobs found.</p>';
-      return;
-    }
+      for (const job of data.jobs) {
+        const jobPassword = job.tags && job.tags.length > 0 ? job.tags[0] : '';
 
-    for (const job of data.jobs) {
-      const storedPassword = job.title?.startsWith('pw:') ? job.title.slice(3) : '';
-
-      const div = document.createElement('div');
-      div.className = 'job';
-      div.innerHTML = `
-        <p><strong>ID:</strong> ${job.jobId}</p>
-        <p><strong>Title:</strong> ${job.title || 'N/A'}</p>
-        <p><strong>URL:</strong> ${job.url}</p>
-        <p><strong>Minutes:</strong> ${JSON.stringify(job.schedule.minutes)}</p>
-        <div class="job-actions">
-          <input type="text" id="minutes-${job.jobId}" value='${JSON.stringify(job.schedule.minutes)}'>
-          <button onclick="updateJob('${job.jobId}')">Update</button>
-          <br/>
-          <input type="password" id="pw-${job.jobId}" placeholder="Enter password to delete">
-          <button onclick="deleteJob('${job.jobId}', '${storedPassword}')">Delete</button>
-        </div>
-      `;
-      list.appendChild(div);
+        const div = document.createElement('div');
+        div.className = 'job';
+        div.innerHTML = `
+          <p><strong>ID:</strong> ${job.jobId}</p>
+          <p><strong>URL:</strong> ${job.url}</p>
+          <p><strong>Minutes:</strong> ${JSON.stringify(job.schedule.minutes)}</p>
+          <div class="job-actions">
+            <input type="text" id="minutes-${job.jobId}" value='${JSON.stringify(job.schedule.minutes)}'>
+            <button onclick="updateJob('${job.jobId}')">Update</button>
+            <br/>
+            <input type="password" id="pw-${job.jobId}" placeholder="Password to delete">
+            <button onclick="deleteJob('${job.jobId}', '${jobPassword}')">Delete</button>
+          </div>
+        `;
+        list.appendChild(div);
+      }
+    } catch (err) {
+      alert('Error loading jobs: ' + err.message);
     }
   }
 
   async function deleteJob(jobId, correctPassword) {
     const entered = document.getElementById(`pw-${jobId}`).value.trim();
-
     if (entered === correctPassword || entered === ADMIN_CODE) {
-      const confirmDelete = confirm('Are you sure you want to delete this job?');
+      const confirmDelete = confirm('Delete this job?');
       if (!confirmDelete) return;
 
       await fetch(`${API_BASE}/jobs/${jobId}`, {
@@ -138,32 +144,36 @@
   }
 
   async function updateJob(jobId) {
-    const newMinutes = JSON.parse(document.getElementById(`minutes-${jobId}`).value.trim());
+    try {
+      const newMinutes = JSON.parse(document.getElementById(`minutes-${jobId}`).value.trim());
 
-    const res = await fetch(`${API_BASE}/jobs/${jobId}`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        job: {
-          schedule: {
-            timezone: "UTC",
-            expiresAt: 0,
-            hours: [-1],
-            mdays: [-1],
-            minutes: newMinutes,
-            months: [-1],
-            wdays: [-1]
+      const res = await fetch(`${API_BASE}/jobs/${jobId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          job: {
+            schedule: {
+              timezone: "UTC",
+              expiresAt: 0,
+              hours: [-1],
+              mdays: [-1],
+              minutes: newMinutes,
+              months: [-1],
+              wdays: [-1]
+            }
           }
-        }
-      })
-    });
+        })
+      });
 
-    const data = await res.json();
-    alert(res.ok ? 'Job Updated!' : 'Error: ' + JSON.stringify(data));
-    loadJobs();
+      const data = await res.json();
+      alert(res.ok ? 'Job Updated!' : 'Error: ' + JSON.stringify(data));
+      loadJobs();
+    } catch (err) {
+      alert('Update error: ' + err.message);
+    }
   }
   </script>
 </body>
