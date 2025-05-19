@@ -2,154 +2,141 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Cron Job Dashboard</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 1rem; }
-    .hidden { display: none; }
-    input, button { padding: 0.5rem; margin: 0.3rem 0; width: 100%; }
-    ul { max-height: 300px; overflow-y: auto; padding: 0; list-style: none; }
-    li { padding: 0.5rem; border-bottom: 1px solid #ddd; }
-    .job-title { font-weight: bold; }
-    .job-actions button { margin-right: 0.5rem; }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cron Job Manager</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Cron Job Dashboard</h1>
+  <div class="container">
+    <h1>Cron Job Manager</h1>
 
-  <div id="login-form">
-    <h2>Login</h2>
-    <input type="email" id="email" placeholder="Email" required />
-    <input type="password" id="password" placeholder="Password" required />
-    <button onclick="login()">Login</button>
-    <p id="login-error" style="color:red"></p>
+    <form id="createForm" class="card">
+      <h2>Create Cron Job</h2>
+      <label>Job URL
+        <input type="text" id="jobUrl" placeholder="https://example.com" required>
+      </label>
+      <button type="submit">Create Job (Every 5 mins)</button>
+    </form>
+
+    <div class="card">
+      <h2>Existing Cron Jobs</h2>
+      <button onclick="loadJobs()">Refresh</button>
+      <div id="jobsList" class="job-list scrollable"></div>
+    </div>
   </div>
 
-  <div id="dashboard" class="hidden">
-    <button onclick="logout()">Logout</button>
-    <h2>Your Cron Jobs</h2>
-    <ul id="jobs-list"></ul>
+  <script>
+  const API_BASE = 'https://api.cron-job.org';
+  const API_KEY = '8EH3QCKn++aUd4SGWabbE4nb667AvXjfYhR55rQbvBE=';
 
-    <h3>Add New Cron Job</h3>
-    <input type="text" id="job-title" placeholder="Job Title" />
-    <input type="url" id="job-url" placeholder="Job URL" />
-    <input type="text" id="job-interval" placeholder="Interval (e.g. every 5 minutes)" />
-    <button onclick="addJob()">Add Job</button>
-    <p id="add-error" style="color:red"></p>
-  </div>
+  window.onload = () => {
+    loadJobs();
+  };
 
-<script>
-  let token = null;
+  document.getElementById('createForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const jobUrl = document.getElementById('jobUrl').value.trim();
 
-  async function login() {
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value.trim();
-    document.getElementById('login-error').innerText = '';
-    if (!email || !password) {
-      document.getElementById('login-error').innerText = 'Email and password required';
-      return;
-    }
-    try {
-      const res = await fetch('http://localhost:3001/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Login failed');
-      token = data.token;
-      showDashboard();
-      loadJobs();
-    } catch (e) {
-      document.getElementById('login-error').innerText = e.message;
-    }
-  }
+    const payload = {
+      job: {
+        url: jobUrl,
+        enabled: true,
+        saveResponses: false,
+        schedule: {
+          timezone: "UTC",
+          expiresAt: 0,
+          hours: [-1],
+          mdays: [-1],
+          minutes: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
+          months: [-1],
+          wdays: [-1]
+        }
+      }
+    };
 
-  function logout() {
-    token = null;
-    document.getElementById('dashboard').classList.add('hidden');
-    document.getElementById('login-form').classList.remove('hidden');
-  }
+    const res = await fetch(`${API_BASE}/jobs`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    alert(res.ok ? 'Job Created!' : 'Error: ' + JSON.stringify(data));
+    loadJobs();
+  });
 
   async function loadJobs() {
-    const list = document.getElementById('jobs-list');
+    const jobsRes = await fetch(`${API_BASE}/jobs`, {
+      headers: { 'Authorization': `Bearer ${API_KEY}` }
+    });
+
+    const data = await jobsRes.json();
+    const list = document.getElementById('jobsList');
     list.innerHTML = '';
-    try {
-      const res = await fetch('http://localhost:3001/jobs', {
-        headers: { Authorization: 'Bearer ' + token }
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to load jobs');
-      if (data.jobs.length === 0) {
-        list.innerHTML = '<li>No cron jobs yet.</li>';
-        return;
-      }
-      data.jobs.forEach(job => {
-        const li = document.createElement('li');
-        li.innerHTML = `
-          <div class="job-title">${job.title}</div>
-          <div>URL: ${job.url}</div>
-          <div>Interval: ${job.interval}</div>
-          <div class="job-actions">
-            <button onclick="deleteJob('${job.id}')">Delete</button>
-          </div>
-        `;
-        list.appendChild(li);
-      });
-    } catch (e) {
-      list.innerHTML = `<li style="color:red">${e.message}</li>`;
-    }
-  }
 
-  async function addJob() {
-    const title = document.getElementById('job-title').value.trim();
-    const url = document.getElementById('job-url').value.trim();
-    const interval = document.getElementById('job-interval').value.trim();
-    document.getElementById('add-error').innerText = '';
-
-    if (!title || !url || !interval) {
-      document.getElementById('add-error').innerText = 'All fields are required';
+    if (!data.jobs || data.jobs.length === 0) {
+      list.innerHTML = '<p>No jobs found.</p>';
       return;
     }
 
-    try {
-      const res = await fetch('http://localhost:3001/jobs', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + token
-        },
-        body: JSON.stringify({ title, url, interval })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to add job');
-      document.getElementById('job-title').value = '';
-      document.getElementById('job-url').value = '';
-      document.getElementById('job-interval').value = '';
-      loadJobs();
-    } catch (e) {
-      document.getElementById('add-error').innerText = e.message;
+    for (const job of data.jobs) {
+      const div = document.createElement('div');
+      div.className = 'job';
+      div.innerHTML = `
+        <p><strong>ID:</strong> ${job.jobId}</p>
+        <p><strong>Title:</strong> ${job.title || 'N/A'}</p>
+        <p><strong>URL:</strong> ${job.url}</p>
+        <p><strong>Minutes:</strong> ${JSON.stringify(job.schedule.minutes)}</p>
+        <div class="job-actions">
+          <input type="text" id="minutes-${job.jobId}" value="${JSON.stringify(job.schedule.minutes)}">
+          <button onclick="updateJob('${job.jobId}')">Update</button>
+          <button onclick="deleteJob('${job.jobId}')">Delete</button>
+        </div>
+      `;
+      list.appendChild(div);
     }
   }
 
-  async function deleteJob(id) {
-    try {
-      const res = await fetch(`http://localhost:3001/jobs/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: 'Bearer ' + token }
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to delete job');
-      loadJobs();
-    } catch (e) {
-      alert('Error deleting job: ' + e.message);
-    }
+  async function deleteJob(jobId) {
+    if (!confirm('Delete this job?')) return;
+    await fetch(`${API_BASE}/jobs/${jobId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${API_KEY}` }
+    });
+    loadJobs();
   }
 
-  function showDashboard() {
-    document.getElementById('login-form').classList.add('hidden');
-    document.getElementById('dashboard').classList.remove('hidden');
+  async function updateJob(jobId) {
+    const newMinutes = JSON.parse(document.getElementById(`minutes-${jobId}`).value.trim());
+
+    const res = await fetch(`${API_BASE}/jobs/${jobId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        job: {
+          schedule: {
+            timezone: "UTC",
+            expiresAt: 0,
+            hours: [-1],
+            mdays: [-1],
+            minutes: newMinutes,
+            months: [-1],
+            wdays: [-1]
+          }
+        }
+      })
+    });
+
+    const data = await res.json();
+    alert(res.ok ? 'Job Updated!' : 'Error: ' + JSON.stringify(data));
+    loadJobs();
   }
-</script>
+  </script>
 </body>
 </html>
