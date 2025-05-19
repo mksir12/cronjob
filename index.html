@@ -116,7 +116,7 @@
           <p><strong>ID:</strong> ${job.jobId}</p>
           <p><strong>Title:</strong> ${job.title || "N/A"}</p>
           <p><strong>URL:</strong> ${job.url}</p>
-          <p><strong>Minutes:</strong> ${JSON.stringify(job.schedule.minutes)}</p>
+          <p><strong>Minutes:</strong> ${job.schedule.minutes.join(", ")}</p>
           <div class="job-actions">
             <button onclick="deleteJobPrompt('${job.jobId}')">Delete</button>
           </div>
