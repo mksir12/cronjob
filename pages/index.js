@@ -1,35 +1,35 @@
-import { useState } from 'react';
-import Router from 'next/router';
+import { useEffect, useState } from "react";
 
-export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+export default function Home() {
+  const [jobs, setJobs] = useState([]);
+  const [error, setError] = useState("");
 
-  const login = async (e) => {
-    e.preventDefault();
-    const res = await fetch('/api/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
+  useEffect(() => {
+    fetch("/api/cronjobs")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch jobs");
+        return res.json();
+      })
+      .then((data) => setJobs(data.jobs || []))
+      .catch((err) => setError(err.message));
+  }, []);
 
-    if (res.ok) {
-      localStorage.setItem('email', email);
-      localStorage.setItem('password', password);
-      Router.push('/dashboard');
-    } else {
-      alert('Login failed');
-    }
-  };
+  if (error) return <p>Error: {error}</p>;
 
   return (
-    <div className="login">
-      <h2>Login to Cron Manager</h2>
-      <form onSubmit={login}>
-        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" />
-        <button type="submit">Login</button>
-      </form>
+    <div style={{ padding: 20 }}>
+      <h1>Cron Jobs List</h1>
+      {jobs.length === 0 ? (
+        <p>No jobs found.</p>
+      ) : (
+        <ul>
+          {jobs.map((job) => (
+            <li key={job.jobId}>
+              {job.title} - Next run: {new Date(job.nextExecution * 1000).toLocaleString()}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
