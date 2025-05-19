@@ -116,7 +116,7 @@
           <p><strong>ID:</strong> ${job.jobId}</p>
           <p><strong>Title:</strong> ${job.title || "N/A"}</p>
           <p><strong>URL:</strong> ${job.url}</p>
-          <p><strong>Minutes:</strong> ${JSON.stringify(job.schedule.minutes)}</p>
+          <p><strong>Minutes:</strong> ${job.schedule.minutes.join(", ")}</p>
           <div class="job-actions">
             <button onclick="deleteJobPrompt('${job.jobId}')">Delete</button>
           </div>
@@ -160,5 +160,10 @@
       }
     }
   </script>
+  <!-- Add this inside the <body> tag, just before the closing </body> -->
+<footer style="text-align:center; padding: 20px; margin-top: 40px; font-size: 14px; color: #555;">
+  <p>Need help? <a href="https://t.me/oggyfromrussian" target="_blank" style="color: #007bff; text-decoration: none;">Contact Admin</a></p>
+</footer>
+
 </body>
 </html>
