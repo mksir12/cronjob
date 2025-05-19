@@ -35,6 +35,16 @@
     const API_KEY = "cJ2az5pzPHzPVFvSHpD/6cBwkZGMy5/rlRAcVDkLOYk=";
     const ADMIN_SECRET = "ogg"; // Change this admin secret here
 
+    const everyFive = [0,5,10,15,20,25,30,35,40,45,50,55];
+
+function isEveryFive(arr) {
+  if (!arr) return false;
+  if (arr.length !== everyFive.length) return false;
+  for (let i = 0; i < arr.length; i++) {
+    if (arr[i] !== everyFive[i]) return false;
+  }
+  return true;
+}
     // Store passwords for jobs: jobId -> password
     // WARNING: This is volatile and lost on refresh
     const jobPasswords = {};
@@ -48,6 +58,10 @@
       const jobUrl = document.getElementById("jobUrl").value.trim();
       const jobPassword = document.getElementById("jobPassword").value.trim();
 
+      const minutesDisplay = isEveryFive(job.schedule.minutes)
+  ? "Every 5 minutes"
+  : job.schedule.minutes.join(", ");
+      
       if (!/^[A-Za-z0-9]{5}$/.test(jobPassword)) {
         alert("Password must be exactly 5 letters or digits.");
         return;
@@ -116,7 +130,7 @@
           <p><strong>ID:</strong> ${job.jobId}</p>
           <p><strong>Title:</strong> ${job.title || "N/A"}</p>
           <p><strong>URL:</strong> ${job.url}</p>
-          <p><strong>Minutes:</strong> ${job.schedule.minutes.join(", ")}</p>
+          <p><strong>Minutes:</strong> ${minutesDisplay}</p>
           <div class="job-actions">
             <button onclick="deleteJobPrompt('${job.jobId}')">Delete</button>
           </div>
