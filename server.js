@@ -1,87 +1,74 @@
-const express = require('express');
-const cors = require('cors');
-const jwt = require('jsonwebtoken');
-const bodyParser = require('body-parser');
-
-const app = express();
-app.use(cors());
-app.use(bodyParser.json());
-
-const JWT_SECRET = 'a6850b037d9e9e6c841d89ab0068e541a93af039b85daff69591307e9e07e4b3b06a1cd64614e9c058db448c74993d5ee47d6d3d4768ad8ad424874d9120aa8f8c68a597b01630977b2b1e87548fb75122bf15022510156fd8a51288b1b5307376077cdaf982fa0894e1c4e55cef583a0fd25192f091746bdc6d062290c88b9d03334e2d6de26a7268fb7b74683ca527c17fe60d26214053f7d3a890e43f35ffe4d5b2c1e8be63d34438c6756be8c62a3bf7e1bc57b700b3cfb068284ad96108';
-
-// Simple in-memory user store & cron jobs store
-const users = {
-  'user@example.com': { password: 'password123', jobs: [] }
-};
-
-// Middleware to authenticate JWT token
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  if (!authHeader) return res.sendStatus(401);
-
-  const token = authHeader.split(' ')[1];
-  if (!token) return res.sendStatus(401);
-
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.sendStatus(403);
-    req.user = user;
-    next();
-  });
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: #f7f7f7;
+  color: #333;
 }
 
-// Login route
-app.post('/login', (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+.container {
+  max-width: 800px;
+  margin: auto;
+  padding: 20px;
+}
 
-  const user = users[email];
-  if (!user || user.password !== password) {
-    return res.status(401).json({ error: 'Invalid credentials' });
-  }
+h1, h2 {
+  text-align: center;
+}
 
-  // Create JWT token
-  const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '1h' });
-  res.json({ token });
-});
+.card {
+  background: white;
+  border-radius: 10px;
+  padding: 20px;
+  margin-top: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
 
-// Get user's cron jobs
-app.get('/jobs', authenticateToken, (req, res) => {
-  const user = users[req.user.email];
-  if (!user) return res.status(404).json({ error: 'User not found' });
-  res.json({ jobs: user.jobs });
-});
+label {
+  display: block;
+  margin: 10px 0 5px;
+  font-weight: bold;
+}
 
-// Add a cron job
-app.post('/jobs', authenticateToken, (req, res) => {
-  const user = users[req.user.email];
-  if (!user) return res.status(404).json({ error: 'User not found' });
+input, button {
+  width: 100%;
+  padding: 8px;
+  margin-top: 5px;
+  box-sizing: border-box;
+  font-size: 14px;
+}
 
-  const { title, url, interval } = req.body;
-  if (!title || !url || !interval) {
-    return res.status(400).json({ error: 'Title, url and interval required' });
-  }
+button {
+  cursor: pointer;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  transition: background 0.3s;
+}
 
-  const newJob = {
-    id: Date.now().toString(),
-    title,
-    url,
-    interval
-  };
+button:hover {
+  background: #45a049;
+}
 
-  user.jobs.push(newJob);
-  res.json(newJob);
-});
+.job {
+  background: #f1f1f1;
+  padding: 10px;
+  border-radius: 6px;
+  margin-top: 10px;
+}
 
-// Delete a cron job
-app.delete('/jobs/:id', authenticateToken, (req, res) => {
-  const user = users[req.user.email];
-  if (!user) return res.status(404).json({ error: 'User not found' });
+.job-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
 
-  user.jobs = user.jobs.filter(job => job.id !== req.params.id);
-  res.json({ success: true });
-});
+.job-actions input {
+  flex: 1;
+}
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+.scrollable {
+  max-height: 400px;
+  overflow-y: auto;
+}
