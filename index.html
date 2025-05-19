@@ -15,10 +15,7 @@
       <label>Job URL
         <input type="text" id="jobUrl" placeholder="https://example.com" required>
       </label>
-      <label>Minutes (e.g., 0 or [0,30])
-        <input type="text" id="minutes" value="0" required>
-      </label>
-      <button type="submit">Create Job</button>
+      <button type="submit">Create Job (Every 5 mins)</button>
     </form>
 
     <div class="card">
@@ -30,21 +27,15 @@
 
   <script>
     const API_BASE = 'https://api.cron-job.org';
-    let API_KEY = '';
+    const API_KEY = '8EH3QCKn++aUd4SGWabbE4nb667AvXjfYhR55rQbvBE=';
 
     window.onload = () => {
-      API_KEY = prompt("Enter your CronJob API Key:");
-      if (!API_KEY) {
-        alert("API Key required!");
-        return;
-      }
       loadJobs();
     };
 
     document.getElementById('createForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const jobUrl = document.getElementById('jobUrl').value.trim();
-      const minutes = JSON.parse(document.getElementById('minutes').value.trim());
 
       const payload = {
         job: {
@@ -56,7 +47,7 @@
             expiresAt: 0,
             hours: [-1],
             mdays: [-1],
-            minutes: minutes,
+            minutes: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
             months: [-1],
             wdays: [-1]
           }
