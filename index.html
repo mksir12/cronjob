@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Cron Job Manager</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="container">
@@ -12,8 +12,13 @@
 
     <form id="createForm" class="card">
       <h2>Create Cron Job</h2>
-      <label>Job URL
-        <input type="text" id="jobUrl" placeholder="https://example.com" required>
+      <label>
+        Job URL
+        <input type="text" id="jobUrl" placeholder="https://example.com" required />
+      </label>
+      <label>
+        Password (5 letters/digits)
+        <input type="text" id="jobPassword" placeholder="e.g. abc12" pattern="[A-Za-z0-9]{5}" required />
       </label>
       <button type="submit">Create Job (Every 5 mins)</button>
     </form>
@@ -26,117 +31,136 @@
   </div>
 
   <script>
-  const API_BASE = 'https://api.cron-job.org';
-  const API_KEY = '8EH3QCKn++aUd4SGWabbE4nb667AvXjfYhR55rQbvBE=';
+    const API_BASE = "https://api.cron-job.org";
+    const API_KEY = "8EH3QCKn++aUd4SGWabbE4nb667AvXjfYhR55rQbvBE=";
+    const ADMIN_SECRET = "ADMIN123"; // Change this admin secret here
 
-  window.onload = () => {
-    loadJobs();
-  };
+    // Store passwords for jobs: jobId -> password
+    // WARNING: This is volatile and lost on refresh
+    const jobPasswords = {};
 
-  document.getElementById('createForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const jobUrl = document.getElementById('jobUrl').value.trim();
-
-    const payload = {
-      job: {
-        url: jobUrl,
-        enabled: true,
-        saveResponses: false,
-        schedule: {
-          timezone: "UTC",
-          expiresAt: 0,
-          hours: [-1],
-          mdays: [-1],
-          minutes: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
-          months: [-1],
-          wdays: [-1]
-        }
-      }
+    window.onload = () => {
+      loadJobs();
     };
 
-    const res = await fetch(`${API_BASE}/jobs`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
+    document.getElementById("createForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const jobUrl = document.getElementById("jobUrl").value.trim();
+      const jobPassword = document.getElementById("jobPassword").value.trim();
 
-    const data = await res.json();
-    alert(res.ok ? 'Job Created!' : 'Error: ' + JSON.stringify(data));
-    loadJobs();
-  });
+      if (!/^[A-Za-z0-9]{5}$/.test(jobPassword)) {
+        alert("Password must be exactly 5 letters or digits.");
+        return;
+      }
 
-  async function loadJobs() {
-    const jobsRes = await fetch(`${API_BASE}/jobs`, {
-      headers: { 'Authorization': `Bearer ${API_KEY}` }
-    });
-
-    const data = await jobsRes.json();
-    const list = document.getElementById('jobsList');
-    list.innerHTML = '';
-
-    if (!data.jobs || data.jobs.length === 0) {
-      list.innerHTML = '<p>No jobs found.</p>';
-      return;
-    }
-
-    for (const job of data.jobs) {
-      const div = document.createElement('div');
-      div.className = 'job';
-      div.innerHTML = `
-        <p><strong>ID:</strong> ${job.jobId}</p>
-        <p><strong>Title:</strong> ${job.title || 'N/A'}</p>
-        <p><strong>URL:</strong> ${job.url}</p>
-        <p><strong>Minutes:</strong> ${JSON.stringify(job.schedule.minutes)}</p>
-        <div class="job-actions">
-          <input type="text" id="minutes-${job.jobId}" value="${JSON.stringify(job.schedule.minutes)}">
-          <button onclick="updateJob('${job.jobId}')">Update</button>
-          <button onclick="deleteJob('${job.jobId}')">Delete</button>
-        </div>
-      `;
-      list.appendChild(div);
-    }
-  }
-
-  async function deleteJob(jobId) {
-    if (!confirm('Delete this job?')) return;
-    await fetch(`${API_BASE}/jobs/${jobId}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${API_KEY}` }
-    });
-    loadJobs();
-  }
-
-  async function updateJob(jobId) {
-    const newMinutes = JSON.parse(document.getElementById(`minutes-${jobId}`).value.trim());
-
-    const res = await fetch(`${API_BASE}/jobs/${jobId}`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
+      const payload = {
         job: {
+          url: jobUrl,
+          enabled: true,
+          saveResponses: false,
           schedule: {
             timezone: "UTC",
             expiresAt: 0,
             hours: [-1],
             mdays: [-1],
-            minutes: newMinutes,
+            minutes: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
             months: [-1],
-            wdays: [-1]
-          }
+            wdays: [-1],
+          },
+        },
+      };
+
+      const res = await fetch(`${API_BASE}/jobs`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        alert("Job Created! Please remember your password.");
+        // Save password in local object with jobId if returned in response
+        // Usually API returns jobId? Let's check
+        if (data.jobId) {
+          jobPasswords[data.jobId] = jobPassword;
         }
-      })
+        // Reload jobs
+        loadJobs();
+      } else {
+        alert("Error: " + JSON.stringify(data));
+      }
     });
 
-    const data = await res.json();
-    alert(res.ok ? 'Job Updated!' : 'Error: ' + JSON.stringify(data));
-    loadJobs();
-  }
+    async function loadJobs() {
+      const jobsRes = await fetch(`${API_BASE}/jobs`, {
+        headers: { Authorization: `Bearer ${API_KEY}` },
+      });
+
+      const data = await jobsRes.json();
+      const list = document.getElementById("jobsList");
+      list.innerHTML = "";
+
+      if (!data.jobs || data.jobs.length === 0) {
+        list.innerHTML = "<p>No jobs found.</p>";
+        return;
+      }
+
+      for (const job of data.jobs) {
+        // Add placeholder password if none known (for demo only)
+        if (!jobPasswords[job.jobId]) jobPasswords[job.jobId] = "";
+
+        const div = document.createElement("div");
+        div.className = "job";
+        div.innerHTML = `
+          <p><strong>ID:</strong> ${job.jobId}</p>
+          <p><strong>Title:</strong> ${job.title || "N/A"}</p>
+          <p><strong>URL:</strong> ${job.url}</p>
+          <p><strong>Minutes:</strong> ${JSON.stringify(job.schedule.minutes)}</p>
+          <div class="job-actions">
+            <button onclick="deleteJobPrompt('${job.jobId}')">Delete</button>
+          </div>
+        `;
+        list.appendChild(div);
+      }
+    }
+
+    async function deleteJobPrompt(jobId) {
+      const inputPassword = prompt(
+        "Enter your 5-character job password or admin secret to delete this job:"
+      );
+      if (!inputPassword) return alert("Password required to delete.");
+
+      if (
+        inputPassword === ADMIN_SECRET ||
+        inputPassword === jobPasswords[jobId]
+      ) {
+        // Authorized to delete
+        await deleteJob(jobId);
+      } else {
+        alert(
+          "Incorrect password. Please contact admin if you lost your password."
+        );
+      }
+    }
+
+    async function deleteJob(jobId) {
+      const res = await fetch(`${API_BASE}/jobs/${jobId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${API_KEY}` },
+      });
+
+      if (res.ok) {
+        alert("Job deleted.");
+        delete jobPasswords[jobId];
+        loadJobs();
+      } else {
+        const data = await res.json();
+        alert("Error deleting job: " + JSON.stringify(data));
+      }
+    }
   </script>
 </body>
 </html>
