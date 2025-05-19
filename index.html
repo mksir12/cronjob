@@ -81,15 +81,13 @@
 
       const data = await res.json();
       if (res.ok) {
-        alert("Job Created! Please remember your password.");
-        // Save password in local object with jobId if returned in response
-        // Usually API returns jobId? Let's check
-        if (data.jobId) {
-          jobPasswords[data.jobId] = jobPassword;
-        }
-        // Reload jobs
-        loadJobs();
-      } else {
+  alert("Job Created! Please remember your password.");
+  if (data.jobId) {
+    jobPasswords[data.jobId] = jobPassword;
+  }
+  location.reload(); // This reloads the page and refreshes the job list
+}
+     else {
         alert("Error: " + JSON.stringify(data));
       }
     });
