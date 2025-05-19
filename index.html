@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Uptimer Robot</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Uptime Robot</h1>
+
+    <form id="createForm" class="card">
+      <h2>Create Uptime</h2>
+      <label>
+        Uptimer URL
+        <input type="text" id="jobUrl" placeholder="https://example.onrender.com" required />
+      </label>
+      <label>
+        Create New Password (5 letters/digits)
+        <input type="text" id="jobPassword" placeholder="e.g. abc12" pattern="[A-Za-z0-9]{5}" required />
+      </label>
+      <button type="submit">Create Uptime (Every 5 mins)</button>
+    </form>
+
+    <div class="card">
+      <h2>Existing Uptimer</h2>
+      <button onclick="loadJobs()">Refresh</button>
+      <div id="jobsList" class="job-list scrollable"></div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "https://api.cron-job.org";
+    const API_KEY = "";
+    const ADMIN_SECRET = "ogg"; // Change this admin secret here
+    
+    // Store passwords for jobs: jobId -> password
+    // WARNING: This is volatile and lost on refresh
+    const jobPasswords = JSON.parse(localStorage.getItem("jobPasswords") || "{}");
+    window.onload = () => {
+      loadJobs();
+    };
+
+    document.getElementById("createForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const jobUrl = document.getElementById("jobUrl").value.trim();
+      const jobPassword = document.getElementById("jobPassword").value.trim();
+      
+      if (!/^[A-Za-z0-9]{5}$/.test(jobPassword)) {
+        alert("Password must be exactly 5 letters or digits.");
+        return;
+      }
+
+      const payload = {
+        job: {
+          url: jobUrl,
+          enabled: true,
+          saveResponses: false,
+          schedule: {
+            timezone: "UTC",
+            expiresAt: 0,
+            hours: [-1],
+            mdays: [-1],
+            minutes: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
+            months: [-1],
+            wdays: [-1],
+          },
+        },
+      };
+
+      const res = await fetch(`${API_BASE}/jobs`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+  alert("Job Created! Please remember your password.");
+  if (data.jobId) {
+  jobPasswords[data.jobId] = jobPassword;
+  localStorage.setItem("jobPasswords", JSON.stringify(jobPasswords));
+  }
+  location.reload(); // This reloads the page and refreshes the job list
+}
+     else {
+        alert("Error: " + JSON.stringify(data));
+      }
+    });
+
+    async function loadJobs() {
+  const jobsRes = await fetch(`${API_BASE}/jobs`, {
+    headers: { Authorization: `Bearer ${API_KEY}` },
+  });
+
+  const data = await jobsRes.json();
+  const list = document.getElementById("jobsList");
+  list.innerHTML = "";
+
+  if (!data.jobs || data.jobs.length === 0) {
+    list.innerHTML = "<p>No jobs found.</p>";
+    return;
+  }
+
+  for (const job of data.jobs) {
+    if (!jobPasswords[job.jobId]) jobPasswords[job.jobId] = "";
+
+    const last = job.lastExecution
+  ? new Date(job.lastExecution * 1000).toLocaleString()
+  : "N/A";
+
+const next = job.nextExecution
+  ? new Date(job.nextExecution * 1000).toLocaleString()
+  : "N/A";
+
+    const statusMap = {
+  0: "Successful",
+  1: "Running",
+  2: "Timeout",
+  3: "HTTP Error",
+  4: "Connection Error",
+  5: "Bad Response",
+};
+
+const statusCode = job.lastStatus;
+const statusText = statusMap[statusCode] || "Unknown";
+const statusEmoji = (statusCode === 0 || statusCode === 1) ? "🟢" : "🔴";
+    const div = document.createElement("div");
+    div.className = "job";
+    div.innerHTML = `
+  <p><strong>ID:</strong> ${job.jobId}</p>
+  <p><strong>URL:</strong> ${job.url}</p>
+  <p><strong>Last Execution:</strong> ${new Date(job.lastExecution * 1000).toLocaleString()}</p>
+  <p><strong>Status:</strong> ${statusText} (${job.lastDuration} ms) ${statusEmoji}</p>
+  <p><strong>Next Execution:</strong> ${new Date(job.nextExecution * 1000).toLocaleString()}</p>
+  <p><strong>Minutes:</strong> ${job.schedule.minutes.join(", ")}</p>
+  <div class="job-actions"><button onclick="deleteJobPrompt('${job.jobId}')">Delete</button></div>
+`;
+
+    list.appendChild(div);
+  }
+}
+
+    async function deleteJobPrompt(jobId) {
+      const inputPassword = prompt(
+        "Enter your 5-character job password or admin secret to delete this job:"
+      );
+      if (!inputPassword) return alert("Password required to delete.");
+
+      if (
+        inputPassword === ADMIN_SECRET ||
+        inputPassword === jobPasswords[jobId]
+      ) {
+        // Authorized to delete
+        await deleteJob(jobId);
+      } else {
+        alert(
+          "Incorrect password. Please contact admin if you lost your password."
+        );
+      }
+    }
+
+    async function deleteJob(jobId) {
+      const res = await fetch(`${API_BASE}/jobs/${jobId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${API_KEY}` },
+      });
+
+      if (res.ok) {
+        alert("Job deleted.");
+        delete jobPasswords[jobId];
+localStorage.setItem("jobPasswords", JSON.stringify(jobPasswords));
+        loadJobs();
+      } else {
+        const data = await res.json();
+        alert("Error deleting job: " + JSON.stringify(data));
+      }
+    }
+  </script>
+  <a href="https://wa.me/919633902730" target="_blank" class="whatsapp-float">
+  <img src="https://img.icons8.com/color/48/000000/whatsapp--v1.png" alt="WhatsApp Chat">
+  </a>
+  <!-- Add this inside the <body> tag, just before the closing </body> -->
+<footer style="text-align:center; padding: 20px; margin-top: 40px; font-size: 14px; color: #555;">
+  <p>Need help? <a href="https://t.me/jerryfromrussian" target="_blank" style="color: #007bff; text-decoration: none;">Contact Admin</a></p>
+</footer>
+
+</body>
+</html>
