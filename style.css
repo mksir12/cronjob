@@ -72,3 +72,30 @@ button:hover {
   max-height: 400px;
   overflow-y: auto;
 }
+
+.whatsapp-float {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 100;
+  padding: 8px 10px;       /* medium padding */
+  border-radius: 50%;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  transition: transform 0.3s;
+  background: none;
+  cursor: move;
+  width: 30px;             /* medium width */
+  height: 30px;            /* medium height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.whatsapp-float img {
+  width: 48px;             /* medium icon size */
+  height: 48px;
+}
+
+.job p {
+  margin: 4px 0;
+}
