@@ -26,117 +26,117 @@
   </div>
 
   <script>
-    const API_BASE = 'https://api.cron-job.org';
-    const API_KEY = '8EH3QCKn++aUd4SGWabbE4nb667AvXjfYhR55rQbvBE=';
+  const API_BASE = 'https://api.cron-job.org';
+  const API_KEY = '8EH3QCKn++aUd4SGWabbE4nb667AvXjfYhR55rQbvBE=';
 
-    window.onload = () => {
-      loadJobs();
+  window.onload = () => {
+    loadJobs();
+  };
+
+  document.getElementById('createForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const jobUrl = document.getElementById('jobUrl').value.trim();
+
+    const payload = {
+      job: {
+        url: jobUrl,
+        enabled: true,
+        saveResponses: false,
+        schedule: {
+          timezone: "UTC",
+          expiresAt: 0,
+          hours: [-1],
+          mdays: [-1],
+          minutes: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
+          months: [-1],
+          wdays: [-1]
+        }
+      }
     };
 
-    document.getElementById('createForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const jobUrl = document.getElementById('jobUrl').value.trim();
+    const res = await fetch(`${API_BASE}/jobs`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
 
-      const payload = {
+    const data = await res.json();
+    alert(res.ok ? 'Job Created!' : 'Error: ' + JSON.stringify(data));
+    loadJobs();
+  });
+
+  async function loadJobs() {
+    const jobsRes = await fetch(`${API_BASE}/jobs`, {
+      headers: { 'Authorization': `Bearer ${API_KEY}` }
+    });
+
+    const data = await jobsRes.json();
+    const list = document.getElementById('jobsList');
+    list.innerHTML = '';
+
+    if (!data.jobs || data.jobs.length === 0) {
+      list.innerHTML = '<p>No jobs found.</p>';
+      return;
+    }
+
+    for (const job of data.jobs) {
+      const div = document.createElement('div');
+      div.className = 'job';
+      div.innerHTML = `
+        <p><strong>ID:</strong> ${job.jobId}</p>
+        <p><strong>Title:</strong> ${job.title || 'N/A'}</p>
+        <p><strong>URL:</strong> ${job.url}</p>
+        <p><strong>Minutes:</strong> ${JSON.stringify(job.schedule.minutes)}</p>
+        <div class="job-actions">
+          <input type="text" id="minutes-${job.jobId}" value="${JSON.stringify(job.schedule.minutes)}">
+          <button onclick="updateJob('${job.jobId}')">Update</button>
+          <button onclick="deleteJob('${job.jobId}')">Delete</button>
+        </div>
+      `;
+      list.appendChild(div);
+    }
+  }
+
+  async function deleteJob(jobId) {
+    if (!confirm('Delete this job?')) return;
+    await fetch(`${API_BASE}/jobs/${jobId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${API_KEY}` }
+    });
+    loadJobs();
+  }
+
+  async function updateJob(jobId) {
+    const newMinutes = JSON.parse(document.getElementById(`minutes-${jobId}`).value.trim());
+
+    const res = await fetch(`${API_BASE}/jobs/${jobId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
         job: {
-          url: jobUrl,
-          enabled: true,
-          saveResponses: false,
           schedule: {
             timezone: "UTC",
             expiresAt: 0,
             hours: [-1],
             mdays: [-1],
-            minutes: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
+            minutes: newMinutes,
             months: [-1],
             wdays: [-1]
           }
         }
-      };
-
-      const res = await fetch(API_BASE + '/jobs', {
-        method: 'PUT',
-        headers: {
-          'Authorization': 'Bearer ' + API_KEY,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await res.json();
-      alert(res.ok ? 'Job Created!' : 'Error: ' + JSON.stringify(data));
-      loadJobs();
+      })
     });
 
-    async function loadJobs() {
-      const jobsRes = await fetch(API_BASE + '/jobs', {
-        headers: { 'Authorization': 'Bearer ' + API_KEY }
-      });
-      const jobs = await jobsRes.json();
-
-      const list = document.getElementById('jobsList');
-      list.innerHTML = '';
-
-      for (const job of jobs.jobs) {
-        const detailsRes = await fetch(API_BASE + '/jobs/' + job.jobId, {
-          headers: { 'Authorization': 'Bearer ' + API_KEY }
-        });
-        const jobData = await detailsRes.json();
-        const jobObj = jobData.job;
-
-        const div = document.createElement('div');
-        div.className = 'job';
-        div.innerHTML = `
-          <p><strong>ID:</strong> ${jobObj.jobId}</p>
-          <p><strong>URL:</strong> ${jobObj.url}</p>
-          <p><strong>Minutes:</strong> ${JSON.stringify(jobObj.schedule.minutes)}</p>
-          <div class="job-actions">
-            <input type="text" id="minutes-${jobObj.jobId}" value="${JSON.stringify(jobObj.schedule.minutes)}">
-            <button onclick="updateJob('${jobObj.jobId}')">Update</button>
-            <button onclick="deleteJob('${jobObj.jobId}')">Delete</button>
-          </div>
-        `;
-        list.appendChild(div);
-      }
-    }
-
-    async function deleteJob(jobId) {
-      if (!confirm('Delete this job?')) return;
-      await fetch(API_BASE + '/jobs/' + jobId, {
-        method: 'DELETE',
-        headers: { 'Authorization': 'Bearer ' + API_KEY }
-      });
-      loadJobs();
-    }
-
-    async function updateJob(jobId) {
-      const newMinutes = JSON.parse(document.getElementById(`minutes-${jobId}`).value.trim());
-
-      const res = await fetch(API_BASE + '/jobs/' + jobId, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': 'Bearer ' + API_KEY,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          job: {
-            schedule: {
-              timezone: "UTC",
-              expiresAt: 0,
-              hours: [-1],
-              mdays: [-1],
-              minutes: newMinutes,
-              months: [-1],
-              wdays: [-1]
-            }
-          }
-        })
-      });
-
-      const data = await res.json();
-      alert(res.ok ? 'Job Updated!' : 'Error: ' + JSON.stringify(data));
-      loadJobs();
-    }
+    const data = await res.json();
+    alert(res.ok ? 'Job Updated!' : 'Error: ' + JSON.stringify(data));
+    loadJobs();
+  }
   </script>
 </body>
 </html>
